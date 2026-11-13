@@ -4,11 +4,11 @@ A scheduled GitHub Actions job posts one compact economic-calendar card to Disco
 
 ## Current deployment status
 
-The public cloud repository is deployed. All 50 initial tests passed on the standard GitHub Ubuntu runner. An actual cloud trial updated the existing Discord weekly card, and the Discord message was read back and verified: one embed, five day sections, four events. Encrypted remote state was verified with no unresolved reservation.
+The public cloud repository is deployed. All 57 current tests passed on the standard GitHub Ubuntu runner. An actual cloud trial updated the existing Discord weekly card, and the Discord message was read back and verified: one embed, five day sections, four events. Encrypted remote state was verified with no unresolved reservation.
 
-Investing.com returned HTTP 403 from the GitHub runner, while Forex Factory succeeded. The owner explicitly authorized automatic Forex Factory delivery during this access denial. ALLOW_FOREX_FACTORY_FALLBACK=true is enabled in the cloud workflow. The first real source diagnostic for this updated policy is pending; the earlier source diagnostic documents the former strict-policy block.
+Investing.com returned HTTP 403 from the GitHub runner, while Forex Factory succeeded. The owner explicitly authorized automatic Forex Factory delivery during this access denial. ALLOW_FOREX_FACTORY_FALLBACK=true is enabled in the cloud workflow. The real updated-policy diagnostic passed: the current weekly Forex Factory feed was parsed, filtered and rendered into five day sections using the authorized fallback. A new cloud trial also updated the same existing next-week Discord card, verified by reading back its content and encrypted state. The next-week trial uses separately prepared data; the source diagnostic validates the current feed and does not claim future data has already been fetched.
 
-Deployment evidence: [Linux tests](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429486615), [source diagnostic](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429577843), [actual Discord cloud trial](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429697588).
+Deployment evidence: [57 Linux tests](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43431323990), [successful live fallback diagnostic](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43431389215), [actual Discord cloud trial](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43431393963). The first scheduled production run is planned for Monday, 16 November 2026 at 06:00 Europe/Berlin and is not claimed as already executed.
 
 ## Calendar rules
 
