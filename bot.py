@@ -13,7 +13,8 @@ from discord import app_commands
 from discord.ext import tasks
 from dotenv import load_dotenv
 
-from calendar_core import load_calendar, monday, next_monday, publication_lock, render_week, weekly_due
+from calendar_core import (READY_SOURCE_STATUSES, load_calendar, monday, next_monday,
+                           publication_lock, render_week, weekly_due)
 from news_core import NewsError, atomic_json_write, payload_digest, read_state
 from calendar_sources import refresh_calendar
 
@@ -169,9 +170,9 @@ async def weekly_check() -> None:
         retry_due = True
     if report.get("week_start") != now.date().isoformat() or retry_due:
         report = await refresh_calendar(NEWS_FILE, SOURCE_REPORT_FILE, now=now)
-        if report["status"] not in ("matched", "checked_with_differences"):
+        if report["status"] not in READY_SOURCE_STATUSES:
             logger.warning("Quellenabgleich nicht bereit: %s", report["status"])
-    if (report.get("status") in ("matched", "checked_with_differences")
+    if (report.get("status") in READY_SOURCE_STATUSES
             and weekly_due(now, state, POST_HOUR, POST_MINUTE)):
         logger.info(await publish())
 

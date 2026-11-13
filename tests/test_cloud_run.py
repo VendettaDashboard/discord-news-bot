@@ -145,3 +145,24 @@ class RunTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(cloud_run.scheduled_time(datetime(2026,11,16,4,59,tzinfo=timezone.utc)))
         self.assertTrue(cloud_run.scheduled_time(datetime(2027,3,29,4,0,tzinfo=timezone.utc)))
         self.assertFalse(cloud_run.scheduled_time(datetime(2027,3,29,3,59,tzinfo=timezone.utc)))
+
+    async def test_allowed_fallback_can_publish_once_and_does_not_claim_two_sources(self):
+        async def fallback(news,report,*,now):
+            raw=payload(now)
+            raw["crosscheck"]={"status":"forex_factory_fallback","sources":["Forex Factory"],
+                              "unavailable":{"Investing.com":"HTTP 403"}}
+            atomic_json_write(news,raw)
+            return {"status":"forex_factory_fallback","sources":{"Investing.com":{"ok":False},"Forex Factory":{"ok":True}}}
+        store=Store()
+        with patch.dict(os.environ,{"ALLOW_FOREX_FACTORY_FALLBACK":"true"}):
+            result=await cloud_run.execute("send",store,now=MONDAY,publisher=self.post,refresher=fallback)
+            checked=await cloud_run.execute("check",now=MONDAY,refresher=fallback)
+        self.assertEqual(result["status"],"published")
+        self.assertEqual(self.posts,1)
+        self.assertEqual(checked["crosscheck"],"forex_factory_fallback")
+        self.assertEqual(checked["day_sections"],5)
+        self.assertEqual(checked["events"],0)
+        with patch.dict(os.environ,{"ALLOW_FOREX_FACTORY_FALLBACK":"false"}):
+            with self.assertRaises(cloud_run.NewsError):
+                await cloud_run.execute("send",Store(),now=MONDAY,publisher=self.post,refresher=fallback)
+        self.assertEqual(self.posts,1)

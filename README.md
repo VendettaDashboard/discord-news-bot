@@ -6,7 +6,7 @@ A scheduled GitHub Actions job posts one compact economic-calendar card to Disco
 
 The public cloud repository is deployed. All 50 initial tests passed on the standard GitHub Ubuntu runner. An actual cloud trial updated the existing Discord weekly card, and the Discord message was read back and verified: one embed, five day sections, four events. Encrypted remote state was verified with no unresolved reservation.
 
-The automatic production source check is currently blocked: Investing.com returned HTTP 403 from the GitHub runner, while Forex Factory succeeded. The default policy still requires both sources, so the schedule will not publish unchecked production news.
+Investing.com returned HTTP 403 from the GitHub runner, while Forex Factory succeeded. The owner explicitly authorized automatic Forex Factory delivery during this access denial. ALLOW_FOREX_FACTORY_FALLBACK=true is enabled in the cloud workflow. The first real source diagnostic for this updated policy is pending; the earlier source diagnostic documents the former strict-policy block.
 
 Deployment evidence: [Linux tests](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429486615), [source diagnostic](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429577843), [actual Discord cloud trial](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429697588).
 
@@ -14,9 +14,11 @@ Deployment evidence: [Linux tests](https://github.com/VendettaDashboard/discord-
 
 Eight currencies: USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD. The default profile includes CPI, actual central-bank rate decisions and official US Nonfarm Payrolls only. National EUR releases, unemployment rates, ADP, speeches, statements and minutes are excluded. Related CPI variants are merged without mixing numbers from different source rows.
 
-Investing.com and Forex Factory are fetched and compared. Dates are converted to Europe/Berlin, including daylight-saving changes. Different CPI measurement variants are recorded rather than compared as the same measure. Unresolved date or event-coverage differences stop publication. A missing source is never presented as “No news”.
+Investing.com and Forex Factory are attempted on every unsent weekly run. When both are reachable, they are compared and corrected Investing timestamps have priority. Dates are converted to Europe/Berlin, including daylight-saving changes. Different CPI measurement variants are recorded rather than compared as the same measure. Unresolved date or event-coverage differences stop publication.
 
-**Known source limitation:** Investing.com currently blocks the direct local request with HTTP 403. The cloud runner must test access separately. If either source remains unavailable, the scheduled job reports failure and does not publish an allegedly checked calendar. Hosting alone does not solve this source-access issue.
+The owner-authorized exception applies only when Investing returns HTTP 403 and Forex Factory provides a valid, current full-week feed. The job then uses Forex Factory and records forex_factory_fallback rather than claiming a successful two-source comparison. Other Investing failures, malformed calendars, stale feeds and missing Forex Factory data still block. Empty news days are rendered only after a valid calendar was obtained. Standalone installations default to the strict policy unless ALLOW_FOREX_FACTORY_FALLBACK=true is explicitly set.
+
+**Known source limitation:** Investing.com currently blocks direct requests with HTTP 403 on both the local PC and GitHub. The approved Forex Factory fallback handles this specific denial. It cannot guarantee delivery if Forex Factory is unavailable or has not yet updated its weekly feed. An inaccessible calendar is never reported as a successful two-source check.
 
 ## One-message design
 
@@ -48,7 +50,7 @@ python -B -m unittest discover -s tests -v
 python -B cloud_run.py --mode check
 ```
 
-The workflow can be triggered manually with check, trial or send. check reads public sources only. trial uses separate prepared preview data and state. send is limited to Monday after 06:00 Berlin time and still requires the two-source check.
+The workflow can be triggered manually with check, trial or send. check reads public sources only. trial uses separate prepared preview data and state. send is limited to Monday after 06:00 Berlin time and requires either the two-source check or the explicitly enabled HTTP-403 fallback.
 
 The former long-running local bot can still be started with bot.py. Slash commands require that live connection. The scheduled cloud job does not keep the bot continuously online, and those commands are not continuously served while the PC is off.
 

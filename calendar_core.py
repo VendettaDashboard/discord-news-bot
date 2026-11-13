@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
@@ -16,6 +17,13 @@ COUNTRIES = {
     "JPY": "Japan", "CHF": "Switzerland", "CAD": "Canada",
     "AUD": "Australia", "NZD": "New Zealand",
 }
+READY_SOURCE_STATUSES = ("matched", "checked_with_differences", "forex_factory_fallback")
+
+
+def ff_fallback_enabled() -> bool:
+    return os.getenv("ALLOW_FOREX_FACTORY_FALLBACK", "false").strip().lower() in ("1", "true", "yes")
+
+
 HEADERS = ("Time", "Currency", "Event", "Forecast", "Previous", "Impact")
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 MONTHS = ("January", "February", "March", "April", "May", "June",
@@ -127,16 +135,22 @@ def normalize_calendar(raw: dict, expected_week: date, *, now: datetime | None =
     return {"week_start": expected_week.isoformat(), "verified_at": raw["verified_at"], "events": events}
 
 
-def load_calendar(path: Path, expected_week: date, *, now: datetime | None = None, require_crosscheck: bool = False) -> dict:
+def load_calendar(path: Path, expected_week: date, *, now: datetime | None = None,
+                  require_crosscheck: bool = False, allow_ff_fallback: bool | None = None) -> dict:
     try:
         raw = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError) as exc:
         raise NewsError("News-Datei fehlt oder ist nicht lesbar.") from exc
     if require_crosscheck:
         proof = raw.get("crosscheck", {}) if isinstance(raw, dict) else {}
-        if (proof.get("status") not in ("matched", "checked_with_differences")
-                or proof.get("sources") != ["Investing.com", "Forex Factory"]):
-            raise NewsError("Der Abgleich von Investing.com und Forex Factory fehlt.")
+        matched = (proof.get("status") in ("matched", "checked_with_differences")
+                   and proof.get("sources") == ["Investing.com", "Forex Factory"])
+        allowed = ff_fallback_enabled() if allow_ff_fallback is None else allow_ff_fallback
+        fallback = (allowed and proof.get("status") == "forex_factory_fallback"
+                    and proof.get("sources") == ["Forex Factory"]
+                    and proof.get("unavailable") == {"Investing.com": "HTTP 403"})
+        if not (matched or fallback):
+            raise NewsError("Der Quellenabgleich oder ein erlaubter Forex-Factory-Ersatzbetrieb fehlt.")
     return normalize_calendar(raw, expected_week, now=now)
 
 

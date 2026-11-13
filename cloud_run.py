@@ -12,13 +12,14 @@ from pathlib import Path
 
 import aiohttp
 
-from calendar_core import BERLIN, load_calendar, monday, next_monday, normalize_calendar, render_week
+from calendar_core import (BERLIN, READY_SOURCE_STATUSES, load_calendar, monday,
+                           next_monday, normalize_calendar, render_week)
 from calendar_sources import refresh_calendar
 from cloud_state import GitHubState, StateError
 from news_core import NewsError, atomic_json_write, read_state
 
 ROOT = Path(__file__).resolve().parent
-READY = ("matched", "checked_with_differences")
+READY = READY_SOURCE_STATUSES
 
 
 def scheduled_time(now: datetime) -> bool:
@@ -64,9 +65,15 @@ async def execute(mode: str, store=None, *, now: datetime | None = None, publish
             atomic_json_write(calendar_path, payload)
         else:
             report = await refresher(calendar_path, report_path, now=now)
-            if mode == "check" or report["status"] not in READY:
-                return {"status": "checked" if report["status"] in READY else "sources_blocked",
-                        "sources": report.get("sources", {}), "crosscheck": report["status"]}
+            if report["status"] not in READY:
+                return {"status": "sources_blocked", "sources": report.get("sources", {}),
+                        "crosscheck": report["status"]}
+            if mode == "check":
+                calendar = load_calendar(calendar_path, week, now=now, require_crosscheck=True)
+                design = render_week(calendar)
+                return {"status": "checked", "sources": report.get("sources", {}),
+                        "crosscheck": report["status"], "week": week.isoformat(),
+                        "events": len(calendar["events"]), "day_sections": len(design["fields"])}
         calendar = load_calendar(calendar_path, week, now=now, require_crosscheck=mode != "trial")
         render_week(calendar)  # Validate the entire single-message layout before reserving a send.
         atomic_json_write(state_path, previous)
@@ -82,11 +89,13 @@ async def execute(mode: str, store=None, *, now: datetime | None = None, publish
                 or not confirmed.get("message_id") or confirmed.get("cleanup_message_ids")
                 or str(result).startswith(("Kein Versand", "Versand fehlgeschlagen"))):
             raise StateError("Versand nicht vollstaendig bestaetigt; Reservierung bleibt zur Pruefung erhalten.")
+        confirmed["source_mode"] = "prepared_preview" if mode == "trial" else report["status"]
         remote[slot] = confirmed
         remote.pop("reservation", None)
         await store.save(remote)
         return {"status": "published", "week": week.isoformat(), "preview": mode == "trial",
-                "events": len(calendar["events"]), "messages": 1}
+                "events": len(calendar["events"]), "messages": 1,
+                "source_mode": confirmed["source_mode"]}
 
 
 async def publish_cloud(calendar_path: Path, state_path: Path, *, preview: bool, refresh_existing: bool):

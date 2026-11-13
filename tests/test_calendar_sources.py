@@ -119,3 +119,72 @@ class FetchingTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(report["sources"]["Forex Factory"]["ok"])
             self.assertEqual(path.read_text(encoding="utf-8"), '{"keep":"existing"}')
             self.assertTrue(report_path.exists())
+
+    async def test_allowed_http_403_fallback_uses_only_forex_factory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path, report_path = Path(directory)/"news.json", Path(directory)/"report.json"
+            secondary = sources.parse_ff([ff(forecast="-0.40%", previous="3.8%")], WEEK, NOW)
+            with patch.dict("os.environ", {"ALLOW_FOREX_FACTORY_FALLBACK":"true"}), \
+                 patch.object(sources, "fetch_investing", new=AsyncMock(side_effect=sources.SourceError("Investing.com: HTTP 403", http_status=403))), \
+                 patch.object(sources, "fetch_ff", new=AsyncMock(return_value=secondary)):
+                report = await sources.refresh_calendar(path, report_path, now=NOW)
+                rows = load_calendar(path, WEEK, now=NOW, require_crosscheck=True)["events"]
+            self.assertEqual(report["status"], "forex_factory_fallback")
+            self.assertFalse(report["sources"]["Investing.com"]["ok"])
+            self.assertEqual((rows[0]["forecast"], rows[0]["previous"]), ("-0.40%", "3.8%"))
+            self.assertEqual(report["crosscheck"]["sources"], ["Forex Factory"])
+            with self.assertRaises(NewsError):
+                load_calendar(path, WEEK, now=NOW, require_crosscheck=True, allow_ff_fallback=False)
+
+    async def test_403_does_not_enable_fallback_without_permission(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"news.json"
+            with patch.dict("os.environ", {"ALLOW_FOREX_FACTORY_FALLBACK":"false"}), \
+                 patch.object(sources, "fetch_investing", new=AsyncMock(side_effect=sources.SourceError("Investing.com: HTTP 403", http_status=403))), \
+                 patch.object(sources, "fetch_ff", new=AsyncMock(return_value=payload())):
+                report = await sources.refresh_calendar(path, Path(directory)/"report.json", now=NOW)
+            self.assertEqual(report["status"], "blocked")
+            self.assertFalse(path.exists())
+
+    async def test_fallback_rejects_other_errors_and_missing_secondary(self):
+        cases = [
+            (sources.SourceError("HTTP 500", http_status=500), payload()),
+            (TimeoutError(), payload()),
+            (sources.SourceError("Changed parser"), payload()),
+            (sources.SourceError("HTTP 403", http_status=403), sources.SourceError("FF unavailable")),
+        ]
+        for primary, secondary in cases:
+            with self.subTest(primary=type(primary).__name__, secondary=type(secondary).__name__), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory)/"news.json"
+                with patch.dict("os.environ", {"ALLOW_FOREX_FACTORY_FALLBACK":"true"}), \
+                     patch.object(sources, "fetch_investing", new=AsyncMock(side_effect=primary)), \
+                     patch.object(sources, "fetch_ff", new=AsyncMock(side_effect=secondary) if isinstance(secondary, BaseException) else AsyncMock(return_value=secondary)):
+                    report = await sources.refresh_calendar(path, Path(directory)/"report.json", now=NOW)
+                self.assertEqual(report["status"], "blocked")
+                self.assertFalse(path.exists())
+
+    async def test_reachable_sources_still_compare_and_never_hide_conflicts(self):
+        for secondary, expected in [(payload(), "matched"), (payload(at="2026-11-11T13:30:00+00:00"), "review_required")]:
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory)/"news.json"
+                with patch.dict("os.environ", {"ALLOW_FOREX_FACTORY_FALLBACK":"true"}), \
+                     patch.object(sources, "fetch_investing", new=AsyncMock(return_value=payload())), \
+                     patch.object(sources, "fetch_ff", new=AsyncMock(return_value=secondary)):
+                    report = await sources.refresh_calendar(path, Path(directory)/"report.json", now=NOW)
+                self.assertEqual(report["status"], expected)
+                self.assertEqual(path.exists(), expected == "matched")
+
+    async def test_fallback_proof_must_show_only_secondary_and_exact_access_denial(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/"news.json"
+            valid = {"status":"forex_factory_fallback", "sources":["Forex Factory"],
+                     "unavailable":{"Investing.com":"HTTP 403"}}
+            for proof in [
+                {**valid, "sources":["Investing.com", "Forex Factory"]},
+                {**valid, "unavailable":{"Investing.com":"HTTP 500"}},
+                {**valid, "unavailable":{}},
+            ]:
+                raw=payload(); raw["crosscheck"]=proof
+                atomic_json_write(path, raw)
+                with self.assertRaises(NewsError):
+                    load_calendar(path, WEEK, now=NOW, require_crosscheck=True, allow_ff_fallback=True)

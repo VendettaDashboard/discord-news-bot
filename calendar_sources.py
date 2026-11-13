@@ -10,7 +10,8 @@ from pathlib import Path
 
 import aiohttp
 
-from calendar_core import BERLIN, COUNTRIES, classify, monday, normalize_calendar
+from calendar_core import (BERLIN, COUNTRIES, READY_SOURCE_STATUSES, classify,
+                           ff_fallback_enabled, monday, normalize_calendar)
 from news_core import NewsError, atomic_json_write
 
 FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
@@ -24,7 +25,9 @@ MAX_BYTES = 5_000_000
 
 
 class SourceError(NewsError):
-    pass
+    def __init__(self, message: str, *, http_status: int | None = None):
+        super().__init__(message)
+        self.http_status = http_status
 
 
 def source_name(title: str, currency: str) -> str:
@@ -172,7 +175,7 @@ def parse_investing_html(html: str) -> tuple[list, list]:
 
 async def response_json(response, label):
     if response.status != 200:
-        raise SourceError(f"{label}: HTTP {response.status}")
+        raise SourceError(f"{label}: HTTP {response.status}", http_status=response.status)
     chunks, size = [], 0
     async for chunk in response.content.iter_chunked(65536):
         size += len(chunk)
@@ -293,6 +296,20 @@ async def refresh_calendar(news_path: Path, report_path: Path, *, now: datetime 
         if combined["coverage_complete"]:
             normalize_calendar(combined, week, now=now)
             atomic_json_write(news_path, combined)
+    elif (ff_fallback_enabled() and isinstance(values[0], SourceError)
+          and values[0].http_status == 403 and not isinstance(values[1], BaseException)):
+        # User-approved fallback only for a confirmed Investing access denial.
+        # Calendar/parser errors, missing FF data and cross-source conflicts still block.
+        combined = dict(values[1])
+        combined["crosscheck"] = {
+            "status": "forex_factory_fallback", "sources": ["Forex Factory"],
+            "unavailable": {"Investing.com": "HTTP 403"},
+            "checked_at": now.isoformat(timespec="seconds"),
+        }
+        normalize_calendar(combined, week, now=now)
+        atomic_json_write(news_path, combined)
+        report["crosscheck"] = combined["crosscheck"]
+        report["status"] = "forex_factory_fallback"
     atomic_json_write(report_path, report)
     return report
 
@@ -301,4 +318,4 @@ if __name__ == "__main__":
     root = Path(__file__).resolve().parent
     report = asyncio.run(refresh_calendar(root / "data" / "news.json", root / "data" / "source_status.json"))
     print(json.dumps(report, ensure_ascii=True))
-    raise SystemExit(0 if report["status"] in ("matched", "checked_with_differences") else 1)
+    raise SystemExit(0 if report["status"] in READY_SOURCE_STATUSES else 1)

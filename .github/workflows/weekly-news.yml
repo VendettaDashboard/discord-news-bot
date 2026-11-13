@@ -49,6 +49,7 @@ jobs:
           GUILD_ID: ${{ secrets.GUILD_ID }}
           PREVIEW_PAYLOAD: ${{ secrets.PREVIEW_PAYLOAD }}
           INITIAL_PREVIEW_STATE: ${{ secrets.INITIAL_PREVIEW_STATE }}
+          ALLOW_FOREX_FACTORY_FALLBACK: 'true'
           TIMEZONE: Europe/Berlin
           POST_TIME: '06:00'
           PYTHONUTF8: '1'
