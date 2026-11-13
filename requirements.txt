@@ -1,0 +1,5 @@
+discord.py>=2.4,<3
+python-dotenv>=1.0,<2
+tzdata>=2024.2
+aiohttp>=3.9,<4
+cryptography>=44,<52

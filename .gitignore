@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+data/*.json
+!news.example.json
+logs/
+temp/
