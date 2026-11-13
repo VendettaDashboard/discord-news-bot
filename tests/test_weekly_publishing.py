@@ -38,6 +38,7 @@ class PublishingTests(unittest.IsolatedAsyncioTestCase):
         self.client = SimpleNamespace(get_channel=lambda channel_id: self.channel)
         self.patches = [
             patch.object(bot, "datetime", Clock), patch.object(bot, "client", self.client),
+            patch.object(bot, "LOCAL_SCHEDULE_ENABLED", True),
             patch.object(bot, "NEWS_FILE", self.root / "news.json"),
             patch.object(bot, "PREVIEW_FILE", self.root / "preview.json"),
             patch.object(bot, "STATE_FILE", self.root / "state.json"),
@@ -176,4 +177,13 @@ class PublishingTests(unittest.IsolatedAsyncioTestCase):
             Clock.current = datetime(2026, 11, 16, 6, 15, tzinfo=BERLIN)
             await bot.weekly_check.coro()
             self.assertEqual(refresh_mock.await_count, 2)
+            publish_mock.assert_not_awaited()
+
+    async def test_cloud_handoff_disables_local_source_fetch_and_send(self):
+        Clock.current = datetime(2026, 11, 16, 6, 0, tzinfo=BERLIN)
+        with patch.object(bot, "LOCAL_SCHEDULE_ENABLED", False), \
+             patch.object(bot, "refresh_calendar", new=AsyncMock()) as refresh_mock, \
+             patch.object(bot, "publish", new=AsyncMock()) as publish_mock:
+            await bot.weekly_check.coro()
+            refresh_mock.assert_not_awaited()
             publish_mock.assert_not_awaited()

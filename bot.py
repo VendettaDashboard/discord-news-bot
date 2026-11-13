@@ -41,6 +41,7 @@ TIMEZONE = ZoneInfo(os.getenv("TIMEZONE", "Europe/Berlin"))
 if TIMEZONE.key != "Europe/Berlin":
     raise SystemExit("Dieser Wochenplan verwendet Europe/Berlin.")
 POST_TIME = os.getenv("POST_TIME", "06:00").strip()
+LOCAL_SCHEDULE_ENABLED = os.getenv("LOCAL_SCHEDULE_ENABLED", "true").strip().lower() in ("1", "true", "yes")
 try:
     POST_HOUR, POST_MINUTE = map(int, POST_TIME.split(":"))
     time(POST_HOUR, POST_MINUTE)
@@ -150,6 +151,8 @@ async def publish(*, preview: bool = False, refresh_existing: bool = False) -> s
 
 @tasks.loop(seconds=30)
 async def weekly_check() -> None:
+    if not LOCAL_SCHEDULE_ENABLED:
+        return
     now = datetime.now(TIMEZONE)
     if now.weekday() != 0 or (now.hour, now.minute) < (5, 40):
         return
@@ -227,7 +230,7 @@ async def on_tree_error(interaction: discord.Interaction, error: app_commands.Ap
 
 @client.event
 async def on_ready() -> None:
-    if not weekly_check.is_running():
+    if LOCAL_SCHEDULE_ENABLED and not weekly_check.is_running():
         weekly_check.start()
     logger.info("Eingeloggt als %s; Zielkanal %s; Montag %s (%s)",
                 client.user, CHANNEL_ID, POST_TIME, TIMEZONE.key)

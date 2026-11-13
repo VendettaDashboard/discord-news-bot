@@ -4,7 +4,11 @@ A scheduled GitHub Actions job posts one compact economic-calendar card to Disco
 
 ## Current deployment status
 
-The cloud implementation and workflow are prepared locally. Repository publication, GitHub Secrets setup and the first actual cloud run still require account authorization. Do not treat local tests as proof that cloud hosting is active.
+The public cloud repository is deployed. All 50 initial tests passed on the standard GitHub Ubuntu runner. An actual cloud trial updated the existing Discord weekly card, and the Discord message was read back and verified: one embed, five day sections, four events. Encrypted remote state was verified with no unresolved reservation.
+
+The automatic production source check is currently blocked: Investing.com returned HTTP 403 from the GitHub runner, while Forex Factory succeeded. The default policy still requires both sources, so the schedule will not publish unchecked production news.
+
+Deployment evidence: [Linux tests](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429486615), [source diagnostic](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429577843), [actual Discord cloud trial](https://github.com/VendettaDashboard/discord-news-bot/actions/runs/43429697588).
 
 ## Calendar rules
 
@@ -52,7 +56,7 @@ The former long-running local bot can still be started with bot.py. Slash comman
 
 A repository-wide workflow concurrency group serializes cloud runs. An encrypted durable reservation is saved before any Discord send, then replaced with the confirmed message state. Re-runs skip confirmed weeks. If a crash occurs after a reservation and the outcome is unclear, another message is not sent automatically; the recorded reservation requires review. Preview and production use separate slots.
 
-Do not erase or regenerate STATE_KEY while encrypted state exists, and do not clear a delivery reservation blindly. Resolve the actual Discord message first to avoid duplicates. Existing local posting must be stopped or disabled when cloud posting is activated.
+Do not erase or regenerate STATE_KEY while encrypted state exists, and do not clear a delivery reservation blindly. Resolve the actual Discord message first to avoid duplicates. Local posting has been stopped for the cloud handoff. LOCAL_SCHEDULE_ENABLED=false in the owner's ignored local .env prevents automatic local posting after an accidental restart. Its default is true for standalone local installations. The cloud publisher does not use this local scheduling switch.
 
 ## Relevant files
 
