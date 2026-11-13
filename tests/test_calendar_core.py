@@ -81,18 +81,23 @@ class CalendarTests(unittest.TestCase):
         self.assertEqual(cards[-1]["title"], "Friday, 20 November")
         self.assertTrue(all(card["description"] == "No news" for card in cards))
 
-    def test_columns_values_and_alignment(self):
+    def test_mobile_event_blocks_preserve_all_values_without_fixed_width_tables(self):
         entries = [event(forecast="-0.40%", previous="68K"),
                    event("Interest Rate Decision", "CAD", "Canada", "2026-11-19T13:30:00+00:00",
-                         forecast="1.25%", previous="3.8%")]
+                         forecast="1.25%", previous="3.8%"),
+                   event("National CPI (YoY)", "JPY", "Japan", "2026-11-18T23:30:00+00:00",
+                         forecast=None, previous="-0.4%")]
         cards = render_cards(normalize_calendar(payload(entries), WEEK, now=NOW))
-        tables = [c["description"].splitlines() for c in cards if c["description"] != "No news"]
-        for table in tables:
-            self.assertEqual(tuple(table[1].split()), HEADERS)
-            self.assertNotIn("|", table[1])
-        self.assertEqual(tables[0][1], tables[1][1])
-        self.assertIn("-0.40%", cards[2]["description"])
-        self.assertIn("68K", cards[2]["description"])
+        blocks = [card["description"] for card in cards if card["description"] != "No news"]
+        for body in blocks:
+            self.assertNotIn("```", body)
+            self.assertNotIn("|", body)
+            self.assertNotIn("   ", body)
+        self.assertEqual(cards[2]["description"].splitlines(),
+                         ["**08:00 · GBP · CPI**", "Forecast: -0.40%", "Previous: 68K", "🔴 High"])
+        self.assertIn("Forecast: —\nPrevious: -0.4%", cards[3]["description"])
+        self.assertIn("**14:30 · CAD · Interest Rate**", cards[3]["description"])
+        self.assertEqual(cards[3]["description"].count("\n\n"), 1)
 
     def test_weekly_timing_catchup_and_duplicate_guard(self):
         self.assertFalse(weekly_due(datetime(2026, 11, 16, 5, 59, tzinfo=BERLIN), {}))

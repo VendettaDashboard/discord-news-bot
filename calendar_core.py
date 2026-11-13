@@ -156,23 +156,20 @@ def load_calendar(path: Path, expected_week: date, *, now: datetime | None = Non
 
 def render_cards(calendar: dict) -> list[dict]:
     start = date.fromisoformat(calendar["week_start"])
-    all_rows = [
-        (row["time"], row["currency"], row["event"], row["forecast"], row["previous"], row["impact"])
-        for row in calendar["events"]
-    ]
-    widths = [max([len(header)] + [len(row[i]) for row in all_rows]) for i, header in enumerate(HEADERS)]
-    def format_row(row):
-        return " ".join(cell.ljust(widths[i]) if i < 5 else cell for i, cell in enumerate(row))
     cards = []
     for offset in range(5):
         day = start + timedelta(days=offset)
         rows = [row for row in calendar["events"] if row["date"] == day.isoformat()]
         title = f"{WEEKDAYS[offset]}, {day.day} {MONTHS[day.month - 1]}"
         if rows:
-            body = [format_row(HEADERS)]
-            body += [format_row((row["time"], row["currency"], row["event"],
-                                 row["forecast"], row["previous"], row["impact"])) for row in rows]
-            description = "```\n" + "\n".join(body) + "\n```"
+            # Native Discord text wraps on phones; fixed-width code tables do not.
+            description = "\n\n".join(
+                f"**{row['time']} · {row['currency']} · {row['event']}**\n"
+                f"Forecast: {row['forecast']}\n"
+                f"Previous: {row['previous']}\n"
+                f"{row['impact']}"
+                for row in rows
+            )
         else:
             description = "No news"
         if len(description) > 4096:
@@ -181,9 +178,8 @@ def render_cards(calendar: dict) -> list[dict]:
     return cards
 
 
-
 def render_week(calendar: dict) -> dict:
-    """Eine Discord-Karte mit fuenf Tagesabschnitten und festen Spalten."""
+    """Eine Discord-Karte mit fuenf Tagesabschnitten und umbrechendem Text."""
     cards = render_cards(calendar)
     fields = []
     for card in cards:

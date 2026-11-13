@@ -22,7 +22,7 @@ The owner-authorized exception applies only when Investing returns HTTP 403 and 
 
 ## One-message design
 
-One Discord message contains one embed with five vertically arranged day sections. English date headings, compact aligned columns and a muted red accent are used. Columns remain Time, Currency, Event, Forecast, Previous, Impact. Days with no matching events show “No news”.
+One Discord message contains one embed with five vertically arranged day sections and a muted red accent. Each event uses a short bold line for Time, Currency and Event, followed by separate Forecast, Previous and Impact lines. Blank lines separate events. Native Discord text wraps naturally on narrow phone screens; no fixed-width tables, horizontal padding or code blocks are used. All six data items remain in the same order. English date headings and “No news” for empty days are retained.
 
 ## GitHub setup
 
