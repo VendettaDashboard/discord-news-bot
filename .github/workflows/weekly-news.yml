@@ -8,8 +8,6 @@ on:
     - cron: '0 4,5 * * 1'
     # Off-hour catch-up opportunities throughout Monday.
     - cron: '7,27,47 4-22 * * 1'
-    # Temporary scheduler verification; remove after the first observed schedule event.
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:
