@@ -75,3 +75,5 @@ Official references:
 - https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule
 - https://docs.github.com/en/billing/concepts/product-billing/github-actions
 - https://docs.github.com/en/rest/actions/secrets
+
+The scheduler registration is refreshed through a standard Git push during the 16 November recovery. An active flag alone is not treated as proof of automatic delivery.
