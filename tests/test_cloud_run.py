@@ -166,3 +166,11 @@ class RunTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(cloud_run.NewsError):
                 await cloud_run.execute("send",Store(),now=MONDAY,publisher=self.post,refresher=fallback)
         self.assertEqual(self.posts,1)
+
+    async def test_late_monday_catchup_does_not_resend_a_confirmed_week(self):
+        store=Store({"production":{"last_sent_week":"2026-11-16","message_id":123}})
+        later=datetime(2026,11,16,23,47,tzinfo=BERLIN)
+        result=await cloud_run.execute("send",store,now=later,publisher=self.post,refresher=self.refresh)
+        self.assertEqual(result["status"],"already_sent")
+        self.assertEqual((self.refresh_calls,self.posts),(0,0))
+        self.assertEqual(store.saved,[])

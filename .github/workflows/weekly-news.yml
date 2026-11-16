@@ -3,8 +3,13 @@ run-name: "Discord news · ${{ github.event_name == 'schedule' && 'send' || inpu
 
 on:
   schedule:
-    - cron: '0,20,40 6 * * 1'
-      timezone: Europe/Berlin
+    # UTC starts cover 06:00 Berlin in summer (04:00) and winter (05:00).
+    # cloud_run.py rejects times before 06:00 Berlin and skips confirmed weeks.
+    - cron: '0 4,5 * * 1'
+    # Off-hour catch-up opportunities throughout Monday.
+    - cron: '7,27,47 4-22 * * 1'
+    # Temporary scheduler verification; remove after the first observed schedule event.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       mode:

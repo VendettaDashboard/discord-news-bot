@@ -26,7 +26,7 @@ One Discord message contains one embed with five vertically arranged day section
 
 ## GitHub setup
 
-The weekly workflow uses a standard Ubuntu runner. Its schedule is Monday 06:00, with bounded retry opportunities at 06:20 and 06:40; an already confirmed week is skipped. GitHub schedules can be delayed and are not an exact-time service. The timezone field handles summer and winter time.
+The weekly workflow uses a standard Ubuntu runner and standard UTC cron triggers. Monday 04:00 and 05:00 UTC cover 06:00 Europe/Berlin in summer and winter. The bot's Europe/Berlin guard rejects earlier local times. Off-hour retries at minutes 07, 27 and 47 from 04:00 through 22:00 UTC provide Monday catch-up opportunities. An already confirmed week is skipped before any source fetch or Discord call. GitHub can delay or drop scheduled events and does not guarantee exact-time delivery. The 16 November incident had no scheduled run recorded, despite an active workflow; GitHub did not expose a more specific cause. A manual cloud recovery delivered that week's news successfully. A temporary five-minute verification trigger is used only during repair and must be removed after observing a real schedule event.
 
 For a public repository, standard GitHub-hosted runner execution is free. This workflow does not upload Actions artifacts, allocate caches, or use larger runners. Private repositories consume the account's included allowance; a zero-spend limit must be confirmed before enabling paid-account execution. Public scheduled workflows can be disabled by GitHub after 60 days without repository activity.
 
