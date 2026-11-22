@@ -12,7 +12,7 @@ Deployment evidence: [57 Linux tests](https://github.com/VendettaDashboard/disco
 
 ## Calendar rules
 
-Eight currencies: USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD. The default profile includes CPI, actual central-bank rate decisions and official US Nonfarm Payrolls only. National EUR releases, unemployment rates, ADP, speeches, statements and minutes are excluded. Related CPI variants are merged without mixing numbers from different source rows. Tokyo/Tokio CPI releases are excluded at the owner's request of 22 November 2026; other Japanese CPI releases and actual rate decisions remain eligible.
+Eight currencies: USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD. The default profile includes CPI, actual central-bank rate decisions and official US Nonfarm Payrolls only. National EUR releases, unemployment rates, ADP, speeches, statements and minutes are excluded. At the owner's request of 22 November 2026, CPI means only the regular nationwide headline release for each currency (EUR: Euro Zone only). Regional CPI such as Tokyo, BOJ Core CPI and standalone Core, Trimmed, Median, Common or other derived series are excluded. MoM/YoY and final/flash variants of the regular release are merged, preferring YoY; excluded series never substitute for a missing headline release. Actual rate decisions and NFP are unchanged. Unknown CPI labels fail closed.
 
 Investing.com and Forex Factory are attempted on every unsent weekly run. When both are reachable, they are compared and corrected Investing timestamps have priority. Dates are converted to Europe/Berlin, including daylight-saving changes. Different CPI measurement variants are recorded rather than compared as the same measure. Unresolved date or event-coverage differences stop publication.
 

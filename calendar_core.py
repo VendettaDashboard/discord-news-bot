@@ -54,8 +54,16 @@ def classify(name: str, currency: str) -> str | None:
         "ppi", "pce", "pmi", "retail", "gdp", "holiday",
     )):
         return None
-    if re.search(r"\bcpi\b|consumer price|inflation rate|\bhicp\b", text):
-        if "expectation" not in text:
+    if currency in COUNTRIES:
+        # Only the regular headline release; regional and derived series fail closed.
+        period = r"(?:yoy|mom|qoq|y/y|m/m|q/q|nsa|sa|q[1-4]|[0-9]{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)"
+        series = r"(?:cpi|consumer price index|consumer price inflation|inflation rate)"
+        if currency == "EUR":
+            series = r"(?:cpi|consumer price index|consumer price inflation|inflation rate|hicp)"
+        regular_cpi = (r"(?:(?:national|headline|final|flash|prelim(?:inary)?)\s+)*"
+                       + series + r"(?:\s+(?:flash estimate|index))?"
+                       + r"(?:\s+(?:yoy|mom|qoq|y/y|m/m|q/q|nsa|sa)|\s*\(" + period + r"\))*")
+        if re.fullmatch(regular_cpi, text.strip()):
             return "CPI"
     if "interest rate decision" in text or text.strip() == "interest rate":
         return "Interest Rate"

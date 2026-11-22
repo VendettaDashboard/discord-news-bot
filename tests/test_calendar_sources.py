@@ -37,6 +37,16 @@ class SourceTests(unittest.TestCase):
         self.assertEqual({(r["currency"], r["event"]) for r in normalized["events"]},
                          {("EUR", "CPI"), ("USD", "NFP"), ("NZD", "Interest Rate")})
 
+    def test_ff_keeps_only_regular_national_headline_cpi(self):
+        rows = [ff("CPI y/y", currency) for currency in COUNTRIES]
+        rows += [ff("BOJ Core CPI y/y", "JPY"), ff("Tokyo Core CPI y/y", "JPY"),
+                 ff("Core CPI y/y", "USD"), ff("Trimmed Mean CPI y/y", "AUD"),
+                 ff("Median CPI y/y", "CAD"), ff("German CPI y/y", "EUR")]
+        calendar = sources.parse_ff(rows, WEEK, NOW)
+        self.assertEqual(len(calendar["events"]), 8)
+        self.assertEqual({e["currency"] for e in calendar["events"]}, set(COUNTRIES))
+        self.assertTrue(all(e["source_event"] == "CPI y/y" for e in calendar["events"]))
+
     def test_ff_preserves_values_and_converts_timezone(self):
         calendar = sources.parse_ff([ff("CPI m/m", forecast="-0.40%", previous="3.8%")], WEEK, NOW)
         row = normalize_calendar(calendar, WEEK, now=NOW)["events"][0]

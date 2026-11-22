@@ -70,8 +70,32 @@ class CalendarTests(unittest.TestCase):
                          [("2026-11-19", "National CPI (YoY)")])
         cards = render_cards(normalize_calendar(payload(regional), WEEK, now=NOW))
         self.assertTrue(all(card["description"] == "No news" for card in cards))
-        self.assertEqual(classify("BOJ Core CPI y/y", "JPY"), "CPI")
+        self.assertIsNone(classify("BOJ Core CPI y/y", "JPY"))
         self.assertEqual(classify("BoJ Interest Rate Decision", "JPY"), "Interest Rate")
+
+    def test_regular_headline_cpi_for_all_eight_currencies(self):
+        labels = {"USD": "CPI (YoY) (Oct)", "EUR": "CPI Flash Estimate y/y",
+                  "GBP": "CPI (MoM)", "JPY": "National CPI (YoY)",
+                  "CHF": "CPI m/m", "CAD": "CPI y/y", "AUD": "CPI y/y", "NZD": "CPI q/q"}
+        for currency, name in labels.items():
+            with self.subTest(currency=currency, name=name):
+                self.assertEqual(classify(name, currency), "CPI")
+        self.assertEqual(classify("HICP (YoY)", "EUR"), "CPI")
+        self.assertEqual(classify("Consumer Price Index (YoY)", "USD"), "CPI")
+        self.assertEqual(classify("Final CPI y/y", "EUR"), "CPI")
+
+    def test_nonstandard_cpi_cannot_create_a_standalone_news_item(self):
+        for currency in COUNTRIES:
+            for name in ("Core CPI (YoY)", "Trimmed Mean CPI m/m", "Median CPI y/y",
+                         "Common CPI y/y", "BOJ Core CPI y/y", "Tokyo CPI y/y",
+                         "Cleveland CPI y/y", "CPI (Tokyo)", "CPI Expectations",
+                         "CPI Ex Food and Energy (YoY)", "Sticky Price CPI", "CPIH y/y"):
+                with self.subTest(currency=currency, name=name):
+                    self.assertIsNone(classify(name, currency))
+        rows = normalize_calendar(payload([
+            event("Core CPI (YoY)"), event("Trimmed CPI (YoY)"),
+            event("BOJ Core CPI y/y", "JPY", "Japan")]), WEEK, now=NOW)["events"]
+        self.assertEqual(rows, [])
 
     def test_rejects_unchecked_stale_and_naive_data(self):
         for change in (
