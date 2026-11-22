@@ -46,6 +46,8 @@ def weekly_due(now: datetime, state: dict, hour: int = 6, minute: int = 0) -> bo
 
 def classify(name: str, currency: str) -> str | None:
     text = name.lower()
+    if currency == "JPY" and re.search(r"\b(?:tokyo|tokio)\b", text):
+        return None
     if any(word in text for word in (
         "unemployment", "adp", "jobless", "employment change", "earnings", "wage",
         "statement", "minutes", "projection", "conference", "speaks", "speech",

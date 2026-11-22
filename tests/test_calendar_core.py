@@ -60,6 +60,19 @@ class CalendarTests(unittest.TestCase):
         row = normalize_calendar(payload([entry]), WEEK, now=NOW)["events"][0]
         self.assertEqual((row["date"], row["time"]), ("2026-11-20", "00:30"))
 
+    def test_tokyo_cpi_is_excluded_but_other_japan_releases_remain(self):
+        regional = [event(name, "JPY", "Japan", "2026-11-19T23:30:00+00:00")
+                    for name in ("Tokyo CPI (YoY)", "Tokyo Core CPI y/y", "TOKYO CPI m/m",
+                                 "CPI Tokyo Ex Food and Energy (YoY)", "Tokio CPI (YoY)")]
+        national = event("National CPI (YoY)", "JPY", "Japan", "2026-11-18T23:30:00+00:00")
+        rows = normalize_calendar(payload(regional + [national]), WEEK, now=NOW)["events"]
+        self.assertEqual([(r["date"], r["source_event"]) for r in rows],
+                         [("2026-11-19", "National CPI (YoY)")])
+        cards = render_cards(normalize_calendar(payload(regional), WEEK, now=NOW))
+        self.assertTrue(all(card["description"] == "No news" for card in cards))
+        self.assertEqual(classify("BOJ Core CPI y/y", "JPY"), "CPI")
+        self.assertEqual(classify("BoJ Interest Rate Decision", "JPY"), "Interest Rate")
+
     def test_rejects_unchecked_stale_and_naive_data(self):
         for change in (
             {"coverage_complete": False}, {"checked_currencies": ["USD"]},
